@@ -1,3 +1,1 @@
-# SEX-DEPENDENT-APOE4-NEUTROPHIL-MICROGLIA-INTERACTIONS-DRIVE-COGNITIVE-IMPAIRMENT-IN-AD
-Code availability for the manuscript
-
+Code availability for the manuscript submission. 
