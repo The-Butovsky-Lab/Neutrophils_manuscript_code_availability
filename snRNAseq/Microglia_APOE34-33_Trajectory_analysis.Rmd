@@ -1,0 +1,131 @@
+---
+title: "Trajectory Analysis"
+author: "Nina Valenbreder"
+date: "2024-02-14"
+output: html_document
+---
+
+The code in this script was used to perform a trajectory analysis and produce Figure 1 D-E
+
+
+# 0.0 Setup the environment
+## 0.1 Load packages
+```{r Setup the Environment, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(magrittr)
+library(Seurat)
+library(scCustomize)
+library(ggplot2)
+library(rstatix)
+library(RColorBrewer)
+library(SCP)
+
+# Set a seed
+set.seed(123)
+```
+
+## 0.2 Set up color palette
+### 0.2.1 All UMAP colors
+```{r}
+################################################################################
+### Setup colors 
+################################################################################
+colors <- brewer.pal(n = 12, "Set3")
+umap.colors <- c("1" =  colors[1],"3" =  colors[2],"8" = colors[3],"10" = colors[4],"4" = colors[5],
+                 "9"  = colors[6],"2"  =colors[7],"7" = colors[8],"5"= colors[9], "6" = colors[10],
+                 "11" = colors[11], "12" =colors[12])
+
+umap.colors.lf <- c("Cluster1" =  colors[1],"Cluster3" =  colors[2],"Cluster8" = colors[3],"Cluster10" = colors[4],"Cluster4" = colors[5],
+                 "Cluster9"  = colors[6],"Cluster2"  =colors[7],"Cluster7" = colors[8],"Cluster5"= colors[9], "Cluster6" = colors[10],
+                 "Cluster11" = colors[11], "Cluster12" =colors[12])
+umap.colors2 <- umap.colors[order(as.integer(names(umap.colors)))]
+umap.colors2 <- umap.colors.lf[order(as.integer(names(umap.colors.lf)))]
+
+################################################################################
+### Setup colors when only looking at Cluster 6 and 8
+################################################################################
+
+umap.colors <- c("1" =  "grey80","3" =  "grey80","8" = colors[3],"10" = "grey80","4" = "grey80",
+                 "9"  = "grey80","2"  ="grey80","7" = "grey80","5"= "grey80", "6" = colors[10],
+                 "11" = "grey80", "12" ="grey80")
+
+umap.colors.lf <- c("Cluster1" =  "grey80","Cluster3" = "grey80","Cluster8" = colors[3],"Cluster10" = "grey80","Cluster4" = "grey80",
+                 "Cluster9"  = "grey80","Cluster2"  ="grey80","Cluster7" = "grey80","Cluster5"= "grey80", "Cluster6" = colors[10],
+                 "Cluster11" = "grey80", "Cluster12" ="grey80")
+
+
+umap.colors2.p <- umap.colors[order(as.integer(names(umap.colors)))]
+umap.colors2.p <- umap.colors.lf[order(as.integer(names(umap.colors.lf)))]
+
+################################################################################
+### Setup Lineages colors
+################################################################################
+
+lineages_colors_end_darker <- c("Lineage1" = "#76cf5b", "Lineage3" = "#c62cd4", 
+                                "Lineage2" = "#d4802c", "Lineage4"="#6686d9", "Lineage6"="#d9c752")
+
+```
+
+# 1.0 Data
+## 1.1 Read in data
+```{r}
+# Load Data
+Microglia <- readRDS(paste0("~/6.2 MicrogliaFinalresubclustered_updated-ClusterNames.rds"))
+meta <- Microglia@meta.data
+
+# Setup the object
+DefaultAssay(Microglia) <- "RNA"
+Idents(Microglia) <- "reordered_mappings"
+levels(Microglia) <- c('1','2','3','4','5','6','7','8','9','10','11','12')
+```
+
+# 2.0 Run Slingshot 
+```{r}
+# Perform Slingshot
+Microglia.slingshot <- RunSlingshot(srt = Microglia, group.by = "reordered_mappings", reduction = "umap", start = '1') #extend = F to force starting cluster
+```
+
+## 2.1 Produce Figure 1.C
+```{r}
+# Produce the Trajectory Plot
+pdf(file = paste0('~/MG_APOE34-33_TrajectoryAnalysis.pdf'))
+print(CellDimPlot(Microglia.slingshot, group.by = 'reordered_mappings', reduction = "umap", 
+                               lineages = paste0("Lineage", c(1, 2, 3)), show_stat=F, palcolor=umap.colors2.p.darker, 
+      title = "", legend.position="none", bg_color="white", theme_use = "theme_classic", raster=FALSE, edge_color = "white", lineages_palcolor = lineages_colors_end_darkest))
+dev.off()
+```
+
+## 3.0 Produce Figure 1.D
+```{r}
+# Setup Genes of Interest
+gene_list <- c('P2RY12', 'PPARG',
+                'IL17RA', 'LGALS3')
+
+# Figure per Gene
+for (entry in gene_list){
+    dynamicplotC123 <- DynamicPlot(
+    srt = Microglia.slingshot, lineages = paste0("Lineage", c(1,2,3)), 
+    group.by = "reordered_mappings",
+    exp_method = 'zscore',
+    features = c(entry), 
+    point_palcolor = umap.colors2,
+    add_point = F,
+    line_palcolor = lineages_colors_end_darker,
+    compare_lineages = T, compare_features = FALSE)
+    
+    ggsave(
+    paste0('~/plots/dynamic plots/Compare_Lineages123/MG_APOE34-33_AllClusters_Compare_Lineages123_', 
+    entry,
+    '.pdf'),
+    plot = dynamicplotC123,
+    device = NULL,
+    path = NULL,
+    scale = 1,
+    width = 500,
+    height = 500,
+    units = c( "mm"),
+    dpi = 500)
+}
+```
+
+
