@@ -1,0 +1,73 @@
+---
+title: "Untitled"
+author: "Madison Carpenter"
+date: "2024-05-30"
+output: html_document
+---
+
+# 1.0 Setup the Environment
+```{r Setup the Environment, echo=FALSE, message=FALSE}
+# Load Required packages
+library(tidyverse)
+library(magrittr)
+library(Seurat)
+library(scCustomize)
+library(ggplot2)
+library(rstatix)
+library(RColorBrewer)
+library(scales)
+
+# Set a seed
+set.seed(123)
+
+# Set Graphical parameters
+color_p <- colorRampPalette(c("blue", "white", "firebrick3"))(41)
+sc <- scale_fill_gradientn(colours = color_p,limits = c(-2,2))
+```
+
+
+# 2.0 Load Data
+
+```{r}
+# Load Microglia + CAMs object
+MicrogliaCAMs <- readRDS(paste0("xxxx"))
+metaCAM <- MicrogliaCAMs@meta.data
+
+# Setup Object
+DefaultAssay(MicrogliaCAMs) <- "RNA"
+```
+
+# 3.0 UMAP and FeaturePlots - Ext Fig1 B and C
+```{r}
+# Generate Feature plot for P2RY12
+pdf(file = "xxxx")
+DimPlot(object = MicrogliaCAMs, label = TRUE)
+dev.off()
+
+# Generate Feature Plot for MRC1
+pdf(file = "xxxx")
+FeaturePlot_scCustom(seurat_object = MicrogliaCAMs, features = "MRC1", raster = FALSE, order = TRUE)
+dev.off()
+
+# Generate Feature Plot for CD163
+pdf(file = "xxxx")
+print(FeaturePlot_scCustom(seurat_object = MicrogliaCAMs, features = "CD163", raster = FALSE, order = TRUE))
+dev.off()
+
+# Generate Feature plot for P2RY12
+pdf(file = "xxxx")
+print(FeaturePlot_scCustom(seurat_object = MicrogliaCAMs, features = "P2RY12", raster = FALSE, order = TRUE))
+dev.off()
+```
+
+
+# 4.0 Dotplot - Ext. Fig1 D
+```{r}
+# Genes of Interest 
+goi <- c("CD163", "PF4","MRC1","LYVE1","MS4A7", "P2RY12")
+
+# Generate Dotplot for genes of interest
+pdf(file = "xxxx")
+DotPlot_scCustom(MicrogliaCAMs, features = goi,flip_axes = TRUE)
+dev.off()
+```
