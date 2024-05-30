@@ -1,0 +1,45 @@
+**snRNAseq data analysis**
+
+The software CellRanger (version 7.0.0) was used to filter low-quality reads, align them to a reference genome (GRCh38), and create a unique molecular identifier (UMI) matrix with assigned cell barcodes. The filtered matrix was loaded into R with Seurat (4.3.0). Nuclei with more than 5% mitochondrial RNA content were removed from the dataset. Additionally, the following thresholds were used: 1) > 200 and < 7000 unique genes; 2) > 200 and < 25000 reads. Scrublet was used to filter out doublets85 . The expected doublet rate was set at 10%, which is in line with the multiplet rates described in the 10X Genomics user guide. Count matrices per donor were normalized using Seurat’s ‘NormalizeData’ function. The VST method determined the top 2000 highly variable features (HVGs). Datasets per donor were anchored and integrated with default settings using reciprocal PCA86. The data were then scaled, and heterogeneity associated with number of UMIs and mitochondrial content was regressed out. Clustering was performed with Seurat’s graph-based approach with a resolution of 0.25. Cell type annotation was performed manually based on the expression of known cell-type markers, including CNS-associated macrophage (CAM) markers to distinguish them from the microglia. Microglia were subset from the whole dataset to create a separate microglia object, and analysis was rerun on the microglia using canonical correlation analysis and additionally regressing out ribosomal content. Dimensionality reduction (with 20 principal components) and subclustering were performed with Seurat with default settings. The optimal cluster resolution was determined by plotting the number of obtained clusters per resolution in a range of 0-3 (steps of 0.1), and a resolution was chosen where there was a plateau in the graph. To optimize subclustering, enriched genes per subcluster were determined using Seurat FindAllMarkers function and if there were subclusters with no enriched genes (logfc > 0.2, Padjust < 0.05) the microglia were clustered at a lower resolution. (Sub)clusters with nuclei primarily from one donor, nuclei containing markers of different cell types, or nuclei with high ribosomal or mitochondrial content were removed and the dataset was reprocessed. Differential gene expression between (sub)clusters was performed with a Seurat’s MAST wrapper in FindAllMarkers, a hurdle model tailored to single-cell data87. Within sub(clusters), differential expression analysis was performed per comparison using the FindMarkers function from the Seurat package. Volcano plots were built using the FindMarkers results per cluster per comparison. The graphs were constructed using the ggplot package (v3.4.4). For detailed steps see ‘Code availability’. 
+
+ 
+
+Cluster Annotation 
+
+Microglia subclusters were annotated using a combination known marker list and functional annotation using pathway enrichment analysis (FGSEA). The top 9 marker genes based on log2fc per cluster were visualized using a dotplot built using the ggplot package (v3.4.4). For FGSEA, the Reactome, KEGG and GO Biological Process databases were utilized (2). The top 5 pathways based on NES per cluster were visualized using barplot from the ggplot package (v3.4.4). Density Plots for marker gene expression were constructed using the Plot_Density_Custom function from the scCustomize package (v2.0.1). 
+
+ 
+
+Cluster proportion analysis 
+
+(Sub)cluster proportional analysis was performed with Propeller to evaluate the statistical significance for compositional differences between phenotypic groups of interest (AD/CTRL groups, APOE genotype groups, and sex group) with the consideration of the confounding variables in the model, with a cutoff of Padjust < 0.05 for significance. ANOVAs were performed with the ‘anova_test’ function from the rstatix package. Correlations between amyloid-β/tau load and (sub)cluster distribution were conducted using Pearson correlations via the cor.test function (v4.1.2). Subsequently, the correlation coefficients (R2) for each cluster were correlated with IPA's Neutrophil Degranulation z-score using the same cor.test function. False discovery rate (FDR) was adjusted using the Padjust function. Graphs were generated using the ggplot package (v3.4.4). 
+
+ 
+
+Proportion Analysis (IL17RA and P2RY12) 
+
+Proportion Analysis was conducted by calculating the mean expression of IL17RA and P2RY12 per cluster. Cells were classified as having elevated expression of IL17RA and/or P2RY12 if their respective expressions were higher than the mean per cluster.  Using the prop.table function, we determine the proportion of cells per group per cluster that were classified as either high or low expression. Donut plots per cluster and group were constructed to visualize the proportional changes in IL17RA+ P2Ry12+ cells. All donut plots were constructed using the ggplot2 package (v3.4.4).  
+
+ 
+
+Cell-Cell Cross Talk 
+
+Microglia-Neutrophil cross-talk was determined using the NicheNet software, as previously described6. Ligands in neutrophils were selected based on a differential expression analysis between conditions (P value < 0.05). Receptors in Microglia were selected based on FindMarkers results per cluster between conditions (P value < 0.05). All NicheNet results were visualized using circos plots from the circlize package (v.0.4.14). Circos plots were colored based on either Average Ligand Log2FC or Interaction strength. For the interaction strength, the value was calculated for each cluster by aggregating the NicheNetR-defined receptor–ligand weights. The average Log2FC values were obtained from the FindMarkers results. 
+
+ 
+
+**MGnD Module Score**
+
+The MGnD module score was computed using the AddModuleScore function from the Seruat package (5.0.1), with input features being known MGnD marker genes for clusters 7 and/or 9. Statistical significance between clusters was assessed using the compare_means function from ggpubr, with the formula Module_score ~ Cluster, method set to Wilcox, and P values adjusted using the BH method (v0.6.0). Cluster 1 served as the reference. The percentage of cells per cluster with a high MGnD score was determined by counting cells whose module score exceeded the combined median score for clusters 7 and 9. 
+
+ 
+
+Pseudobulk 
+
+Pseudobulk analysis was conducted by extracting counts per patient using the AverageExpression function from Seurat. CombatSeq (from  sva v3.36.0)88 was used to remove confounding differences from different sequencing batches. DEGs were determined using DESeq2 (v.1.34.00)68 with the following design formula: design = ~ 0 + group + age + pmid, whereby group denominated the combined metadata information of Diagnosis:Sex:APOEGenotype. DEGs from relevant comparisons were extracted using the WALD test and contrast function. 
+
+ 
+
+Trajectory analysis 
+
+Cell lineages connecting subclusters were inferred using the slingshot package (v2.10.0)89. Pseudotime dynamic plots of the trajectories at gene-level were generated using the SCP integration package (v0.5.1). 
