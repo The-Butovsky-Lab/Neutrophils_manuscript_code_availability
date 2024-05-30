@@ -1,0 +1,93 @@
+---
+title: "snRNAseq_NeutrophilManuscript_FindMarkers"
+author: "Madison Carpenter"
+date: "2024-02-20"
+output: html_document
+---
+
+```{r}
+##
+# Purpose: The purpose of the code is to perform FindMarkers (APOE 34 vs APOE33) per group per cluster on the Microglia object.
+# Date: February 20,2024
+# Author: Madison Carpenter
+##
+```
+
+
+# 1.0 Setup Environment
+
+```{r}
+# Setup Enviornment
+library(Seurat)
+library(magrittr)
+library(tidyverse)
+
+# Set Version Control
+set.seed(123)
+```
+
+
+# 2.0 Load Seurat Object
+```{r}
+# Load new object
+Microglia <- readRDS(file = paste0("xxx"))
+meta <- Microglia@meta.data
+
+# Setup Object
+Idents(Microglia) <- "reordered_mappings"
+levels(Microglia) <- c('1','2','3','4','5','6','7','8','9','10','11','12')
+DefaultAssay(Microglia) <- "RNA"
+```
+
+
+# 3.0 FindMarkers- Genotype: APOE 34 vs APOE 33
+## 3.1 AD patients
+### 3.1.1 Overall
+```{r}
+# Subset out cluster
+MOI <- c("diagnosis")
+subset_design <- noquote('Fd$diagnosis == "AD"')
+Fd <- FetchData(Microglia, vars = MOI)
+MG.sub.df <- Microglia[, which(eval(parse(text = subset_design)))]
+final.df <- data.frame()
+
+# Run FindMarkers per Cluster
+for (entry in 1:length(unique(Microglia$reordered_mappings))) {
+  
+  # Print Entry
+  entry <- entry
+  print(entry)
+  
+  # subset out subcluster
+  data_new <- subset(MG.sub.df, idents = entry)
+  print(data_new@meta.data$reordered_mappings %>% unique())
+  
+
+  # Assign a new identity
+  Idents(data_new) = 'new_apoe'
+  DefaultAssay(data_new) <- "RNA"
+  print(DefaultAssay(data_new))
+  print(data_new@meta.data$reordered_mappings %>% unique())
+  
+  # Run Markers
+  Markers <- FindMarkers(data_new, ident.1 = 'APOE34', ident.2 = 'APOE33', group.by = 'new_apoe', 
+                                                     min.pct = 0.05, logfc.threshold = 0.05, min.diff.pct = 0.0) %>%
+    rownames_to_column('gene') %>% filter(p_val < 0.05) %>% mutate(Cluster = paste0("Cluster", entry))
+
+  # Export File 
+    writexl::write_xlsx(x = Markers, path = paste0("xxx",entry,"xxx"))
+    
+    
+  # Merge all Dataframes
+  print("Running: Saving results")
+  if(nrow(final.df) == 0) {
+      final.df <- Markers
+    } else{
+      final.df <- rbind(final.df, Markers)
+    }
+}
+
+# Write Merged Excel Files
+writexl::write_xlsx(x = final.df, path = paste0("xxx"))
+```
+
