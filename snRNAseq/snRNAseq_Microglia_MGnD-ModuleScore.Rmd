@@ -1,0 +1,141 @@
+---
+title: "snRNASeq_MG-APOE34-33_ModuleScore"
+author: "Madison Carpenter"
+date: "2024-01-30"
+output: html_document
+---
+
+# 1.0 Setup the Environment
+```{r Setup the Environment, echo=FALSE, message=FALSE}
+# Load Required packages
+library(tidyverse)
+library(magrittr)
+library(Seurat)
+library(RColorBrewer)
+library(ggpubr)
+library(rstatix)
+library(scales)
+library(scCustomize)
+
+# Set a seed
+set.seed(123)
+```
+
+# 2.0 Load Data 
+```{r}
+# Load Data
+Microglia <- readRDS(paste0("xxxx"))
+meta <- Microglia@meta.data
+
+# Setup the object
+Idents(Microglia) <- "reordered_mappings"
+levels(Microglia) <- c('1','2','3','4','5','6','7','8','9','10','11','12')
+DefaultAssay(Microglia) <- "RNA"
+
+
+# Loading the MGnD genes
+mgnd.genes <- readxl::read_xlsx(path = "xxxx")
+```
+
+
+# 3.0 MGnD Module Score
+## 3.1 Calculate Module Score
+```{r ND module score}
+# Set Idents and Default Assay & Calculate Module Score 
+DefaultAssay(Microglia) <- "RNA"
+Microglia <- AddModuleScore(object = Microglia, features = list(mgnd.genes$gene), name= "module", assay = "RNA")
+
+# Create Dataframe for Vln Plot 
+Module_score <- Microglia@meta.data$module1
+Cluster <- Microglia@meta.data$reordered_mappings
+
+# Create Vlnl Plot data
+vln_data <- map2_dfr(Module_score, Cluster, ~ tibble(Module_score = .x, Cluster = .y)) %>%
+  mutate(Cluster = paste0("Cluster", Cluster), 
+         Cluster = factor(Cluster,levels = c("Cluster1", "Cluster2", "Cluster3", "Cluster4","Cluster5","Cluster6","Cluster7","Cluster8","Cluster9","Cluster10","Cluster11","Cluster12")))
+
+# Calculate the comparisons per Genotype
+comparisons <- vln_data %>%
+  compare_means(
+    data = .,
+    formula = Module_score ~ Cluster,
+    method = "wilcox.test",
+    p.adjust.method = "BH") %>%
+  add_xy_position(scales = "free", data = vln_data, formula = Module_score ~ Cluster) %>%
+  filter(group1 == "Cluster1")
+
+# Median Module score
+modulescore.value <- Microglia@meta.data %>% filter(reordered_mappings == "9" | reordered_mappings == "7") %>% dplyr::select(module1) 
+median(modulescore.value$module1)
+
+# Prepare stats
+comparisons.dotplot <- comparisons %>% dplyr::rename("reordered_mappings" = "group2")
+
+# Calculate Average Module for Cluster 7-9
+stats <- Microglia@meta.data %>%
+  group_by(reordered_mappings) %>%
+  mutate(median = median(module1), 
+         aboveDAMmedian = ifelse(module1 > 0.19054206, "Yes", "No")) %>%
+  dplyr::select(c(reordered_mappings, aboveDAMmedian))
+
+# Organize and Merge the statistics folder with Wilcox results
+graph.stats <- stats %>% 
+  mutate(reordered_mappings = paste0("Cluster", reordered_mappings), 
+         reordered_mappings = factor(reordered_mappings, levels = c("Cluster1", "Cluster2", "Cluster3", "Cluster4", "Cluster5", "Cluster6", 
+                                                                    "Cluster7", "Cluster8", "Cluster9", "Cluster10", "Cluster11", "Cluster12"))) %>%
+  group_by(reordered_mappings) %>%
+  mutate(CellsPerCluster = n()) %>%
+  ungroup() %>%
+  group_by(reordered_mappings, aboveDAMmedian, CellsPerCluster) %>%
+  summarise(count = n()) %>% 
+  mutate(Percentage = round((count/CellsPerCluster) * 100))%>% 
+  merge(., comparisons.dotplot, by = "reordered_mappings", all = TRUE) 
+
+```
+
+## 3.2 Generate DotPlot (Figure 1E)
+
+```{r}
+# Construct Graph
+mod.graph <- graph.stats %>% 
+  mutate(logPvalue = -log10(p)) %>%
+  filter(aboveDAMmedian == "Yes") %>%
+  mutate(p = as.numeric(p)) %>%
+  mutate(logPvalue = ifelse(logPvalue == Inf, paste0(-log10(2.225074e-308)), paste0(logPvalue)), 
+         logPvalue = as.numeric(logPvalue)) %>%
+    
+    # Create a graph visualizing the z-score per pathway per group 
+    ggplot(., aes(x = aboveDAMmedian, y = reordered_mappings, color = logPvalue,size = Percentage)) +
+    geom_point(mapping = aes(color= `logPvalue`)) +
+    
+    # Wrap the Pathway names on the Y axis
+    scale_y_discrete(labels = function(y) str_wrap(y, width = 40)) +
+    
+    # Customize the graph 
+    theme_bw(base_size = 14) +
+    
+    #eliminates background, grid lines, and chart border
+    theme(
+      plot.background = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.border = element_blank()
+    ) +
+    
+    #draws x and y axis line / Removes Titles
+    theme(axis.line.y = element_line(color = 'black'),
+          axis.title.y=element_blank(), 
+          axis.line.x = element_line(color = 'black'),
+          axis.title.x=element_blank()) +
+    
+    # Set Color scale 
+    scale_colour_gradientn(colours = c("#0033FF","#0066FF","#0099FF","#66CCFF","grey","#FF9999","#FF6666","red","#990000"), 
+                           values = rescale(x = c(-5,-4,-2,-0.1,0,0.1,2,4, 5), from = c(-5, 5)),na.value = "grey") +
+      # Add Analysis Labels
+    theme(axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) +
+  ggtitle("MGnD signature")  + 
+  labs(color = "-log10(pvalue)")
+
+# Save the graph
+ggsave(filename= "xxxxx", plot = mod.graph,width = 4)
+```
