@@ -5,11 +5,11 @@ date: "2024-02-14"
 output: html_document
 ---
 
-The code in this script was used to perform a trajectory analysis and produce Figure 1 D-E
+The code in this script was used to perform a trajectory analysis and produce Figure 1 C-D
 
 
-# 0.0 Setup the environment
-## 0.1 Load packages
+# 1.0 Setup the environment
+## 1.1 Load packages
 ```{r Setup the Environment, echo=FALSE, message=FALSE}
 library(tidyverse)
 library(magrittr)
@@ -24,8 +24,8 @@ library(SCP)
 set.seed(123)
 ```
 
-## 0.2 Set up color palette
-### 0.2.1 All UMAP colors
+## 1.2 Set up color palette
+### 1.2.1 All UMAP colors
 ```{r}
 ################################################################################
 ### Setup colors 
@@ -57,11 +57,10 @@ umap.colors2.p.darker <- umap.colors.lf[order(as.integer(names(umap.colors.lf)))
 
 lineages_colors_end_darker <- c("Lineage1" = "#76cf5b", "Lineage3" = "#c62cd4", 
                                 "Lineage2" = "#d4802c", "Lineage4"="#6686d9", "Lineage6"="#d9c752")
-
 ```
 
-# 1.0 Data
-## 1.1 Read in data
+# 2.0 Data
+## 2.1 Read in data
 ```{r}
 # Load Data
 Microglia <- readRDS(paste0("xxxx"))
@@ -73,13 +72,13 @@ Idents(Microglia) <- "reordered_mappings"
 levels(Microglia) <- c('1','2','3','4','5','6','7','8','9','10','11','12')
 ```
 
-# 2.0 Run Slingshot 
+# 3.0 Run Slingshot 
 ```{r}
 # Perform Slingshot
 Microglia.slingshot <- RunSlingshot(srt = Microglia, group.by = "reordered_mappings", reduction = "umap", start = '1') #extend = F to force starting cluster
 ```
 
-## 2.1 Produce Figure 1.C
+## 3.1 Produce Figure 1.C
 ```{r}
 # Produce the Trajectory Plot
 pdf(file = paste0('xxxx'))
@@ -89,7 +88,7 @@ print(CellDimPlot(Microglia.slingshot, group.by = 'reordered_mappings', reductio
 dev.off()
 ```
 
-## 2.2 Produce Figure 1.D
+## 3.2 Produce Figure 1.D
 ```{r}
 # Setup Genes of Interest
 gene_list <- c('P2RY12', 'PPARG',
